@@ -46,26 +46,27 @@ public class CharacterArmature : MonoBehaviour
         /**
          * We traverse upwards from our given start to our end, filling up the path list as we go on.
         */
-        public void Traverse(List<GameObject> points)
+        public void Traverse(Dictionary<GameObject, int> points)
         {
             GameObject current;
             while ((current = Step()) != null)
             {
                 path.Add(current);
-                if (!points.Contains(current))
+                if (!points.ContainsKey(current))
                 {
-                    points.Add(current);
+                    points.Add(current, 0);
                 }
             }
         }
     }
     public CharacterColliderHandler.ColliderType colliderType;
+    [Range(0,1)] //Feel free to edit the range of this value
     public float colliderSize = 1;
 
     public GameObject topPoint;
     public List<GameObject> endPoints;
     [HideInInspector]
-    public List<GameObject> points;
+    public Dictionary<GameObject, int> points = new Dictionary<GameObject, int>();
 
     [ContextMenu("Build")]
     public void Build()
@@ -82,7 +83,7 @@ public class CharacterArmature : MonoBehaviour
         }
 
         //Clearing points list for reusability.
-        points.Clear();
+        points = new Dictionary<GameObject, int>(); //For some reason, clearing the dictionary doesn't work in Unity.
 
         //Setting up nodes for each end point.
         List<Node> nodes = new List<Node>();
@@ -101,7 +102,8 @@ public class CharacterArmature : MonoBehaviour
         foreach (Node node in nodes)
         {
             node.path.Reverse();
-            CharacterColliderHandler.AddCollider(node.path, colliderSize, colliderType);
+            CharacterColliderHandler.AddCollider(node.path, colliderSize, colliderType, points);
+            CharacterJointHandler.AddJoint(node.path);
         }
     }
     [ContextMenu("Clean")]
@@ -111,22 +113,22 @@ public class CharacterArmature : MonoBehaviour
         {
             return;
         }
-        foreach (GameObject point in points)
+        foreach (GameObject point in points.Keys)
         {
             CleanPoint(point);
         }
     }
     public void CleanPoint(GameObject point)
     {
-        Rigidbody rb = point.GetComponent<Rigidbody>();
-        if (rb)
-        {
-            DestroyImmediate(rb);
-        }
         CharacterJoint joint = point.GetComponent<CharacterJoint>();
         if (joint)
         {
             DestroyImmediate(joint);
+        }
+        Rigidbody rb = point.GetComponent<Rigidbody>();
+        if (rb)
+        {
+            DestroyImmediate(rb);
         }
         CapsuleCollider capCol = point.GetComponent<CapsuleCollider>();
         if (capCol)

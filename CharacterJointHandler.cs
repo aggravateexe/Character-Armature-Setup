@@ -4,7 +4,15 @@ using UnityEngine;
 
 public class CharacterJointHandler
 {
-    public void AddJoint(GameObject start, GameObject end)
+    public static void AddJoint(List<GameObject> path)
+    {
+        for (int i = 0; i < path.Count - 1; i++)
+        {
+            GameObject start = path[i], end = path[i + 1];
+            AddJoint(start, end);
+        }
+    }
+    public static void AddJoint(GameObject start, GameObject end)
     {
         if (start == null || end == null)
         {
@@ -14,7 +22,7 @@ public class CharacterJointHandler
         Rigidbody rbStart, rbEnd;
         rbStart = start.AcquireComponent<Rigidbody>();
         rbEnd = end.AcquireComponent<Rigidbody>();
-        
+
         rbStart.useGravity = false;
         rbEnd.useGravity = false;
         rbStart.isKinematic = true;

@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,19 +7,21 @@ public class CharacterColliderHandler : MonoBehaviour
 {
     private class ColliderInfo
     {
-        public float scale; //Scale of the bone since armature's have their own scaling.
+        public float lossyScale;
         public float height; //Height of the collider
+        public float width; //width of the collider
         public float capsuleColliderRadius;
         public Vector3 center, boxColliderSize;
 
-        public ColliderInfo(GameObject start, GameObject end, float size)
+        public ColliderInfo(GameObject start, GameObject end, float size, Dictionary<GameObject, int> points)
         {
-            this.scale = start.transform.lossyScale.x;
-            this.height = Vector3.Distance(start.transform.position, end.transform.position) / this.scale;
+            this.lossyScale = start.transform.lossyScale.x;
+            this.height = Vector3.Distance(start.transform.position, end.transform.position) / this.lossyScale;
+            this.width = Math.Abs(start.transform.position.x - end.transform.position.x) / this.lossyScale;
             this.center = new Vector3(0, height / 2, 0);
 
-            this.capsuleColliderRadius = size / this.scale;
-            this.boxColliderSize = new Vector3(size/this.scale, height, size/this.scale);
+            this.capsuleColliderRadius = size / this.lossyScale;
+            this.boxColliderSize = new Vector3(capsuleColliderRadius, height, capsuleColliderRadius);
         }
     }
     public enum ColliderType
@@ -28,30 +31,32 @@ public class CharacterColliderHandler : MonoBehaviour
         Box
     };
 
-    public static void AddCollider(GameObject start, GameObject end, float size, ColliderType colType)
+    public static void AddCollider(GameObject start, GameObject end, float size, ColliderType colType, Dictionary<GameObject, int> points)
     {
         switch (colType)
         {
             case ColliderType.Capsule:
-                AddCapsuleCollider(start, end, size);
+                AddCapsuleCollider(start, end, size, points);
                 break;
             case ColliderType.Box:
-                AddBoxCollider(start, end, size);
+                AddBoxCollider(start, end, size, points);
                 break;
             default:
                 break;
         }
+        points[start]++;
     }
 
-    public static void AddCollider(List<GameObject> points, float size, ColliderType colType)
+    public static void AddCollider(List<GameObject> path, float size, ColliderType colType, Dictionary<GameObject, int> points)
     {
-        for (int i = 0; i < points.Count - 1; i++)
+        for (int i = 0; i < path.Count - 1; i++)
         {
-            AddCollider(points[i], points[i + 1], size, colType);
+            GameObject start = path[i], end = path[i + 1];
+            AddCollider(start, end, size, colType, points);
         }
     }
     
-    public static void AddCapsuleCollider(GameObject start, GameObject end, float size)
+    public static void AddCapsuleCollider(GameObject start, GameObject end, float size, Dictionary<GameObject, int> points)
     {
         if (start == null || end == null)
         {
@@ -64,13 +69,21 @@ public class CharacterColliderHandler : MonoBehaviour
         }
 
         CapsuleCollider capCol = start.AcquireComponent<CapsuleCollider>();
-        ColliderInfo colInfo = new ColliderInfo(start, end, size);
+        ColliderInfo colInfo = new ColliderInfo(start, end, size, points);
 
         capCol.center = colInfo.center;
         capCol.height = colInfo.height;
-        capCol.radius = colInfo.capsuleColliderRadius;
+
+        if (points[start] > 0)
+        {
+            capCol.radius += colInfo.width;
+        }
+        else
+        {
+            capCol.radius = colInfo.capsuleColliderRadius;
+        }
     }
-    public static void AddBoxCollider(GameObject start, GameObject end, float size)
+    public static void AddBoxCollider(GameObject start, GameObject end, float size, Dictionary<GameObject, int> points)
     {
         if (start == null || end == null)
         {
@@ -83,9 +96,16 @@ public class CharacterColliderHandler : MonoBehaviour
         }
 
         BoxCollider boxCol = start.AcquireComponent<BoxCollider>();
-        ColliderInfo colInfo = new ColliderInfo(start, end, size);
+        ColliderInfo colInfo = new ColliderInfo(start, end, size, points);
 
         boxCol.center = colInfo.center;
-        boxCol.size =colInfo.boxColliderSize;
+        if (points[start] > 0)
+        {
+            boxCol.size = new Vector3(boxCol.size.x + colInfo.width, colInfo.height, boxCol.size.z + colInfo.width);
+        }
+        else
+        {
+            boxCol.size = colInfo.boxColliderSize;
+        }
     }
 }
