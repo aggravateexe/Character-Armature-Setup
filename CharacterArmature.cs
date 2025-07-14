@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.Remoting.Contexts;
 using UnityEngine;
 
 public class CharacterArmature : MonoBehaviour
@@ -10,13 +9,14 @@ public class CharacterArmature : MonoBehaviour
     */
     private class Node
     {
-        private GameObject start, end, current;
+        private GameObject start, current;
+        private List<GameObject> ends;
         public List<GameObject> path;
 
-        public Node(GameObject start, GameObject end)
+        public Node(GameObject start, List<GameObject> ends)
         {
             this.start = start;
-            this.end = end;
+            this.ends = ends;
             this.current = null;
             this.path = new List<GameObject>();
         }
@@ -28,7 +28,7 @@ public class CharacterArmature : MonoBehaviour
         */
         private GameObject Step()
         {
-            if (current == end)
+            if (ends.Contains(current))
             {
                 return null;
             }
@@ -60,20 +60,22 @@ public class CharacterArmature : MonoBehaviour
         }
     }
     public CharacterColliderHandler.ColliderType colliderType;
-    [Range(0,1)] //Feel free to edit the range of this value
+    [Range(0, 1)] //Feel free to edit the range of this value
     public float colliderSize = 1;
-
-    public GameObject topPoint;
+    public List<GameObject> topPoints;
     public List<GameObject> endPoints;
     [HideInInspector]
-    public Dictionary<GameObject, int> points = new Dictionary<GameObject, int>();
+    public Dictionary<GameObject, int> points;
 
     [ContextMenu("Build")]
     public void Build()
     {
-        if (topPoint == null)
+        topPoints.RemoveAll(x => x == null);
+        endPoints.RemoveAll(x => x == null);
+        
+        if (topPoints.Count < 1)
         {
-            Debug.Log("Top Point is NULL, cannot build!");
+            Debug.Log("There are no Top Points to traverse with, cannot build!");
             return;
         }
         else if (endPoints.Count < 1)
@@ -89,7 +91,7 @@ public class CharacterArmature : MonoBehaviour
         List<Node> nodes = new List<Node>();
         foreach (GameObject endPoint in endPoints)
         {
-            nodes.Add(new Node(endPoint, topPoint));
+            nodes.Add(new Node(endPoint, topPoints));
         }
 
         //We will now have all end points traverse upwards to the top point in order to get their respective paths.
@@ -97,7 +99,6 @@ public class CharacterArmature : MonoBehaviour
         {
             node.Traverse(points);
         }
-
         //Applying scripts to points within a nodes path.
         foreach (Node node in nodes)
         {
@@ -109,7 +110,7 @@ public class CharacterArmature : MonoBehaviour
     [ContextMenu("Clean")]
     public void Clean()
     {
-        if (points.Count < 1)
+        if (points == null || points.Count < 1)
         {
             return;
         }
@@ -118,7 +119,7 @@ public class CharacterArmature : MonoBehaviour
             CleanPoint(point);
         }
     }
-    public void CleanPoint(GameObject point)
+    private void CleanPoint(GameObject point)
     {
         CharacterJoint joint = point.GetComponent<CharacterJoint>();
         if (joint)
@@ -130,15 +131,7 @@ public class CharacterArmature : MonoBehaviour
         {
             DestroyImmediate(rb);
         }
-        CapsuleCollider capCol = point.GetComponent<CapsuleCollider>();
-        if (capCol)
-        {
-            DestroyImmediate(capCol);
-        }
-        BoxCollider boxCol = point.GetComponent<BoxCollider>();
-        if (boxCol)
-        {
-            DestroyImmediate(boxCol);
-        }
+        CharacterColliderHandler.RemoveColliders(point);
     }
+
 }
